@@ -14,13 +14,17 @@
  */
 import { rpcOver, loadRom, readHeader, browserInflate } from "./load.mjs";
 import { bootRom, describe } from "./boot.mjs";
+import { openBundle } from "./bundle.mjs";
+import { isEmscriptenBundle, bootEmscripten, start } from "./emscripten.mjs";
 import { proofFor, merkle, hash } from "./merkle.mjs";
 import { quote, CHAINS, PAYLOADS } from "./cost.mjs";
 
 /**
  * Where to read from.
  *
- * Published to Robinhood Chain (id 4663) on 2026-09-15. The empty-state branch
+ * DEPTH, published to Robinhood Chain (id 4663) on 2026-09-15.
+ * The earlier XOR-field demo remains at 0xaaa063de…, untouched: sealing is
+ * one-way, so a new payload means a new ROM rather than a replacement. The empty-state branch
  * below is kept rather than deleted: if this is ever pointed at an unpublished
  * chain, "nothing has been published yet" and "the chain is unreachable" are
  * different problems and should not look alike.
@@ -28,7 +32,7 @@ import { quote, CHAINS, PAYLOADS } from "./cost.mjs";
 const CONFIG = {
   rpc: "https://rpc.mainnet.chain.robinhood.com",
   chainName: "Robinhood Chain",
-  rom: "0xaaa063ded7115b3346b140bf1a1f9c46074a6591",
+  rom: "0x358e13021a06a5eb912cb0c260b2fdd331b704dc",
 };
 
 /* `?rom=0x…&rpc=…` overrides the defaults. This is how the page is tested
@@ -180,6 +184,21 @@ async function boot(bytes) {
      drawing to the same canvas and the second load looks like corruption. */
   if (running) { running(); running = null; }
 
+  /* A real 1990s engine compiles to a wasm module plus a JavaScript runtime,
+     and a ROM holding one holds both. That runtime is executed — which is the
+     premise rather than an oversight, and is safe only because these bytes
+     have already been matched against the root the contract sealed. The
+     verification above is what earns this. */
+  try {
+    const files = openBundle(bytes);
+    if (isEmscriptenBundle(files)) return await bootNative(files);
+  } catch (e) {
+    say("");
+    say("bundle: " + e.message, "a");
+    status("verified, not booted", "ok");
+    return;
+  }
+
   try {
     const booted = await bootRom({
       bytes,
@@ -249,6 +268,44 @@ async function boot(bytes) {
     $("stageNote").hidden = false;
     $("stageNote").textContent = e.message;
     status("verified, not booted", "ok");
+  }
+}
+
+/**
+ * Boot an emscripten-built engine — the shape a real game takes.
+ *
+ * The runtime comes off the chain with everything else and is imported from a
+ * Blob URL, because none of these bytes exist as a file anywhere. The game's
+ * data files are written into its in-memory filesystem before main() runs;
+ * doing it afterwards is too late, and the game reports missing files that are
+ * demonstrably present.
+ */
+async function bootNative(files) {
+  try {
+    say("emscripten runtime detected", "d");
+    const booted = await bootEmscripten({
+      files,
+      canvas: $("screen"),
+      onOutput: (line, kind) => say("  " + line, kind === "err" ? "a" : "d"),
+      onStage: (names) => {
+        for (const n of names) say("  staged " + n, "d");
+      },
+    });
+    say("runtime  " + booted.glueName, "g");
+    say("module   " + booted.wasmName, "g");
+    say("");
+    $("stageNote").hidden = true;
+    say("starting the engine…", "g");
+    status("running", "ok");
+    /* callMain does not return for a game — asyncify keeps the browser
+       responsive, but control stays inside the engine from here. */
+    start(booted.instance);
+  } catch (e) {
+    say("");
+    say("boot: " + e.message, "r");
+    $("stageNote").hidden = false;
+    $("stageNote").textContent = e.message;
+    status("verified, not booted", "bad");
   }
 }
 
