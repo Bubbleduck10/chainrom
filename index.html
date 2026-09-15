@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chainrom — a whole game, held inside a chain</title>
+<meta name="description" content="A 1990s game stored as contract code on an EVM chain, verified by the chain, and booted in your browser from chain state.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230a0e0a'/><rect x='7' y='9' width='18' height='4' fill='%2343d675'/><rect x='7' y='16' width='18' height='4' fill='%2343d675'/><rect x='7' y='23' width='11' height='3' fill='%23227a43'/></svg>">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<div class="scan" aria-hidden="true"></div>
+
+<header class="top">
+  <a class="brand" href="#top">
+    <span class="logo" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span>chainrom</span>
+  </a>
+  <nav>
+    <a href="#boot">Boot</a>
+    <a href="#proof">Proof</a>
+    <a href="#how">How</a>
+    <a href="#status">Status</a>
+  </nav>
+</header>
+
+<main id="top">
+
+<section class="hero">
+  <p class="kicker">Not a link to the game. The game.</p>
+  <h1>A whole game,<br>held <em>inside</em> a chain.</h1>
+  <p class="lede">
+    Every byte of the engine and its data is deployed as contract code on an EVM
+    chain. No server holds it. Your browser reads it out of chain state, checks it
+    against a commitment the chain itself can verify, and runs it.
+  </p>
+  <div class="cta">
+    <a class="btn go" href="#boot">Read it off the chain</a>
+    <a class="btn" href="#how">How it works</a>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── boot ──────────────────────────────── -->
+
+<section class="band" id="boot">
+  <h2>Pull it off the chain</h2>
+  <p class="sub">
+    Nothing here is cached and nothing is served from this page. Every byte
+    below arrives from an RPC node and is checked before it is run.
+  </p>
+
+  <div class="console">
+    <div class="console-head">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">idle</span>
+      <span class="spacer"></span>
+      <button class="btn small go" id="btnLoad" type="button">Load from chain</button>
+    </div>
+
+    <div class="bar"><span id="barFill"></span></div>
+
+    <pre class="log" id="log">waiting.</pre>
+
+    <div class="stage">
+      <canvas id="screen" width="640" height="400" aria-label="Game output"></canvas>
+      <div class="stage-note" id="stageNote">
+        The canvas stays dark until a ROM is published and its engine boots.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid4">
+    <div class="cell"><span>Chunks</span><b id="mChunks">—</b></div>
+    <div class="cell"><span>Bytes on chain</span><b id="mBytes">—</b></div>
+    <div class="cell"><span>Contracts read</span><b id="mReads">—</b></div>
+    <div class="cell"><span>Merkle root</span><b id="mRoot" class="mono-sm">—</b></div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── proof ─────────────────────────────── -->
+
+<section class="band" id="proof">
+  <h2>The chain checks its own copy</h2>
+  <p>
+    This is the part an equivalent on Solana cannot do. There, a program cannot
+    read transaction data — the bytes sit in the ledger and an RPC hands them
+    back, so the verification lives in the page and you are trusting a webpage
+    again.
+  </p>
+  <p>
+    Here the bytes are <strong>contract code</strong>. The ROM contract reads its
+    own chunks with <code>EXTCODECOPY</code>, hashes them, and walks the merkle
+    tree to its committed root. Ask it about any chunk and the answer comes from
+    the EVM, not from JavaScript.
+  </p>
+
+  <div class="console">
+    <div class="console-head">
+      <span class="dot" id="proofDot"></span>
+      <span id="proofText">not run</span>
+      <span class="spacer"></span>
+      <button class="btn small" id="btnProof" type="button">Spot-check 6 chunks</button>
+    </div>
+    <pre class="log" id="proofLog">verify(index, proof) — evaluated on chain.</pre>
+  </div>
+
+  <div class="note">
+    <h4>What the loader refuses</h4>
+    <ul class="checks">
+      <li><b>An unsealed ROM.</b> Before sealing, the owner can still append chunks and set any root, so matching the root would prove only that the publisher was self-consistent when you looked.</li>
+      <li><b>A wrong, swapped, missing or duplicated chunk.</b> The tree is rebuilt from what actually arrived and compared with the commitment.</li>
+      <li><b>A payload that inflates cleanly but is the wrong game.</b> Both the compressed and the decompressed forms are committed to, because a valid gzip stream is not evidence of anything.</li>
+      <li><b>A malformed bundle.</b> The root proves the bytes were published; it says nothing about whether they are well formed.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── how ───────────────────────────────── -->
+
+<section class="band" id="how">
+  <h2>How a game fits in a chain</h2>
+
+  <ol class="steps">
+    <li>
+      <b>Bundle</b>
+      <p>The engine and its data files go into one container, then gzip once over the whole thing.</p>
+    </li>
+    <li>
+      <b>Chunk</b>
+      <p>Cut into 24,575-byte pieces — EIP-170 caps deployed code at 24,576 and one byte is the STOP prefix that keeps the data from being executable.</p>
+    </li>
+    <li>
+      <b>Commit</b>
+      <p>A keccak256 merkle tree over the chunk hashes. keccak rather than SHA-256 because the EVM computes it natively, so a contract can check a proof for a few thousand gas.</p>
+    </li>
+    <li>
+      <b>Deploy</b>
+      <p>Each chunk becomes its own contract. The ROM records the pointers, then seals — one way, so the root becomes a commitment rather than a label.</p>
+    </li>
+    <li>
+      <b>Read</b>
+      <p>The browser fetches each pointer's code, rebuilds the tree, compares the root, inflates with the platform's own gzip, and compiles the WebAssembly — in that order. Never compile first.</p>
+    </li>
+  </ol>
+
+  <h3>What it costs</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Payload</th><th>Size</th><th>As calldata</th><th>As contract code</th><th>Contracts</th></tr></thead>
+      <tbody id="costRows"></tbody>
+    </table>
+  </div>
+  <p class="fineprint">
+    Calldata is the direct equivalent of writing bytes into transactions: permanent
+    and retrievable, but invisible to contracts. Contract code costs more and is
+    readable by the chain. Mainnet figures include the EIP-7623 data floor, which
+    raises a data-heavy transaction to 40 gas per byte rather than 16 — costing
+    this workload at 16 understates mainnet by two and a half times. Blobs are
+    excluded on purpose: clients drop them after about eighteen days, so they are
+    not storage.
+  </p>
+</section>
+
+<!-- ─────────────────────────────── status ────────────────────────────── -->
+
+<section class="band" id="status">
+  <h2>Honest status</h2>
+  <div class="status">
+    <div class="done">
+      <h3>Working</h3>
+      <ul>
+        <li>Packer — bundle, gzip, chunk, keccak merkle</li>
+        <li>ROM contract — code storage and on-chain proof verification</li>
+        <li>Publisher — plan, deploy, verify each chunk, seal</li>
+        <li>Raw EIP-1559 signing, no wallet library</li>
+        <li>Loader and boot path, browser and Node</li>
+        <li>118 tests, including a full publish-and-run against a real EVM</li>
+      </ul>
+    </div>
+    <div class="todo">
+      <h3>Not yet</h3>
+      <ul>
+        <li>A published ROM on a public chain</li>
+        <li>The engine's host interface — file system, frame buffer, input</li>
+        <li>The payload itself</li>
+      </ul>
+    </div>
+  </div>
+  <p class="fineprint">
+    Whatever ships here has to be a game that is genuinely free to redistribute.
+    Bytes on a chain are permanent and cannot be taken down, so a payload that
+    merely looks unlikely to attract a complaint is not good enough. Nothing is
+    published yet.
+  </p>
+</section>
+
+</main>
+
+<footer>
+  <span class="logo small" aria-hidden="true"><i></i><i></i><i></i></span>
+  <span>chainrom</span>
+  <span class="sep">·</span>
+  <span>read from chain state, verified by the chain</span>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
