@@ -23,8 +23,10 @@ import { quote, CHAINS, PAYLOADS } from "./cost.mjs";
  * Where to read from.
  *
  * DEPTH, published to Robinhood Chain (id 4663) on 2026-09-15.
- * The earlier XOR-field demo remains at 0xaaa063de…, untouched: sealing is
- * one-way, so a new payload means a new ROM rather than a replacement. The empty-state branch
+ * Earlier ROMs remain where they were — 0xaaa063de… (XOR field) and
+ * 0x358e1302… (DEPTH before mouse look). Sealing is one-way, so every
+ * revision is a new ROM rather than a replacement, and the old ones stay
+ * readable forever. The empty-state branch
  * below is kept rather than deleted: if this is ever pointed at an unpublished
  * chain, "nothing has been published yet" and "the chain is unreachable" are
  * different problems and should not look alike.
@@ -32,7 +34,7 @@ import { quote, CHAINS, PAYLOADS } from "./cost.mjs";
 const CONFIG = {
   rpc: "https://rpc.mainnet.chain.robinhood.com",
   chainName: "Robinhood Chain",
-  rom: "0x358e13021a06a5eb912cb0c260b2fdd331b704dc",
+  rom: "0x5b2ed277a723c71b4e1c041e1ce0035c313ae931",
 };
 
 /* `?rom=0x…&rpc=…` overrides the defaults. This is how the page is tested
