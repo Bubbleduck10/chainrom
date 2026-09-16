@@ -89,7 +89,7 @@ a { color: inherit; }
 
 /* ── X / social ───────────────────────────────────────────────────────── */
 .x { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; text-transform: none; }
-.x svg { width: 13px; height: 13px; flex: none; }
+.x svg { width: 11px; height: 11px; flex: none; opacity: .85; }
 .top nav a.x { margin-left: 2px; text-transform: none; }
 footer .x { color: var(--ink-mute); margin-left: auto; }
 footer .x:hover { color: var(--green); }
