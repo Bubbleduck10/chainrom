@@ -283,7 +283,7 @@ async function boot(bytes) {
   try {
     const booted = await bootRom({
       bytes,
-      canvas: $("screen"),
+      canvas: $("canvas"),
       onFiles: (data) => {
         for (const [name, b] of data) say("  " + name + "  " + fmtBytes(b.length), "d");
       },
@@ -306,7 +306,7 @@ async function boot(bytes) {
         const info = booted.display.loadPalette(pal, Math.min(256, Math.floor(pal.length / 3)));
         say("palette  " + (info.sixBit ? "256 entries, 6-bit VGA, scaled" : "256 entries, 8-bit"), "d");
       }
-      booted.display.attach($("screen"));
+      booted.display.attach($("canvas"));
       running = booted.display.listen(window);
     }
 
@@ -366,7 +366,7 @@ async function bootNative(files) {
     say("emscripten runtime detected", "d");
     const booted = await bootEmscripten({
       files,
-      canvas: $("screen"),
+      canvas: $("canvas"),
       onOutput: (line, kind) => say("  " + line, kind === "err" ? "a" : "d"),
       onStage: (names) => {
         for (const n of names) say("  staged " + n, "d");
@@ -380,7 +380,7 @@ async function bootNative(files) {
     status("running", "ok");
     /* Focus the canvas so the keyboard reaches the engine without a click
        first — the arrow keys drive shooting in SIEGE. */
-    try { $("screen").focus(); } catch (e) {}
+    try { $("canvas").focus(); } catch (e) {}
     /* callMain does not return for a game — asyncify keeps the browser
        responsive, but control stays inside the engine from here. */
     start(booted.instance);
@@ -461,7 +461,7 @@ $("btnFull").addEventListener("click", () => {
   const stage = document.querySelector(".stage");
   if (document.fullscreenElement) { if (document.exitFullscreen) document.exitFullscreen(); return; }
   const p = stage.requestFullscreen ? stage.requestFullscreen() : null;
-  Promise.resolve(p).then(() => { try { $("screen").focus(); } catch (e) {} }).catch(() => {});
+  Promise.resolve(p).then(() => { try { $("canvas").focus(); } catch (e) {} }).catch(() => {});
 });
 
 /* Arrow keys and Space scroll the page by default, which steals them from the

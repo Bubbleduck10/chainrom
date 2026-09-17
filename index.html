@@ -80,7 +80,9 @@
     <pre class="log" id="log">waiting.</pre>
 
     <div class="stage">
-      <canvas id="screen" width="640" height="400" tabindex="0" aria-label="Game output"></canvas>
+      <!-- id MUST be "canvas": emscripten's SDL2 registers mouse events on the
+           "#canvas" selector, so a different id silently drops all mouse input. -->
+      <canvas id="canvas" width="640" height="400" tabindex="0" aria-label="Game output"></canvas>
       <div class="stage-note" id="stageNote">
         Press Load to pull DEPTH out of chain state. Click the view to capture
         the mouse; WASD to move, Q/E or arrows to turn, shift to run.
