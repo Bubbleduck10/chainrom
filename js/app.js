@@ -18,6 +18,7 @@ import { openBundle } from "./bundle.mjs";
 import { isEmscriptenBundle, bootEmscripten, start } from "./emscripten.mjs";
 import { proofFor, merkle, hash } from "./merkle.mjs";
 import { quote, CHAINS, PAYLOADS } from "./cost.mjs";
+import { mountTouch, unmountTouch, isTouch } from "./touch.js";
 
 /**
  * Where to read from.
@@ -192,6 +193,7 @@ let loaded = null;   // { bytes, header } once a ROM has been read and proved
 async function load() {
   const btn = $("btnLoad");
   btn.disabled = true;
+  unmountTouch();   // clear any pad from a prior boot
   lines = [];
   setBar(0);
 
@@ -403,6 +405,9 @@ async function bootNative(files) {
     /* callMain does not return for a game — asyncify keeps the browser
        responsive, but control stays inside the engine from here. */
     start(booted.instance);
+    /* On a touch device, raise the on-screen pad — the engine reads a real
+       keyboard/mouse, so the pad synthesises exactly those events. */
+    mountTouch(GAMES[selected].id);
   } catch (e) {
     say("");
     say("boot: " + e.message, "r");

@@ -368,3 +368,34 @@ footer {
   .hero { padding-top: 48px; }
   .band { padding-block: 36px; }
 }
+
+/* ── on-screen touch controls (DEPTH / SIEGE on mobile) ───────────────────── */
+.touch {
+  position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  touch-action: none; -webkit-user-select: none; user-select: none;
+}
+.touch .tstick, .touch .tbtn { pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.touch .tstick {
+  position: absolute; bottom: 18px; width: min(34vw, 132px); aspect-ratio: 1;
+  border-radius: 50%; border: 1.5px solid #43d67555; background: radial-gradient(circle, #0a1c1288, #05100b66);
+  box-shadow: 0 0 18px #0006, inset 0 0 24px #43d6751f; display: grid; place-items: center;
+}
+.touch .tstick.left { left: 18px; }
+.touch .tside { position: absolute; right: 18px; bottom: 18px; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.touch .tside .tstick { position: static; }
+.touch .tnub {
+  width: 44%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #7cf0a6, #2f9a5a); border: 1px solid #0b2417;
+  box-shadow: 0 0 14px #43d67566; transition: transform .04s linear;
+}
+.touch .tcap {
+  position: absolute; bottom: -18px; left: 0; right: 0; text-align: center;
+  font: 700 10px/1 ui-monospace, monospace; letter-spacing: 2px; color: #7fae95;
+}
+.touch .tbtn {
+  min-width: 58px; padding: 11px 14px; border-radius: 999px;
+  border: 1.5px solid #43d67566; background: #0a1c12cc; color: #cffbd8;
+  font: 700 12px ui-monospace, monospace; letter-spacing: 1px;
+}
+.touch .tbtn.on, .touch .tstick.on { border-color: #43d675; color: #43d675; box-shadow: 0 0 16px #43d67566; }
+:fullscreen .touch { position: fixed; }

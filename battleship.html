@@ -75,7 +75,7 @@
 
   <!-- placement -->
   <div class="card" id="place">
-    <div class="tag">Place your fleet — drag to move, double-click a ship to rotate</div>
+    <div class="tag">Place your fleet — drag to move, tap (or double-click) a ship to rotate</div>
     <div class="gwrap" style="margin:10px auto 0"><div class="grid" id="pgrid"></div></div>
     <div class="row" id="wagerRow" style="margin-top:14px;align-items:center">
       <span class="who">Stake</span>
@@ -272,16 +272,24 @@ function renderPlace() {
     el.style.flexDirection = s.horiz ? "row" : "column";
     for (let i = 0; i < s.len; i++) el.appendChild(document.createElement("i"));
     el.addEventListener("pointerdown", (e) => startDrag(e, idx));
-    el.addEventListener("dblclick", () => { const o = { ...s }; s.horiz = !s.horiz; if (!inB(s) || ov(fleet)) Object.assign(s, o); renderPlace(); });
+    el.addEventListener("dblclick", () => { rotate(s); renderPlace(); });
     g.appendChild(el);
   });
   updateReady();
 }
+function rotate(s) { const o = { ...s }; s.horiz = !s.horiz; if (!inB(s) || ov(fleet)) Object.assign(s, o); }
 function startDrag(e, idx) {
   e.preventDefault(); const g = $("pgrid"), rect = g.getBoundingClientRect(), cs = rect.width / 10, s = fleet[idx], orig = { ...s };
-  const move = (ev) => { const c = Math.floor((ev.clientX - rect.left - cs / 2) / cs), r = Math.floor((ev.clientY - rect.top - cs / 2) / cs);
+  const sx = e.clientX, sy = e.clientY, touch = e.pointerType === "touch"; let moved = false;
+  const move = (ev) => {
+    if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 8) moved = true;
+    const c = Math.floor((ev.clientX - rect.left - cs / 2) / cs), r = Math.floor((ev.clientY - rect.top - cs / 2) / cs);
     s.r = Math.max(0, Math.min(s.horiz ? 9 : 10 - s.len, r)); s.c = Math.max(0, Math.min(s.horiz ? 10 - s.len : 9, c)); renderPlace(); };
-  const up = () => { if (ov(fleet) || !inB(s)) Object.assign(s, orig); renderPlace(); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+  const up = () => {
+    // On touch a tap (no drag) rotates — double-click is unreliable on phones.
+    if (touch && !moved) { Object.assign(s, orig); rotate(s); }
+    else if (ov(fleet) || !inB(s)) Object.assign(s, orig);
+    renderPlace(); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
   window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
 }
 
