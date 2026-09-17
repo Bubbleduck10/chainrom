@@ -50,9 +50,9 @@ const GAMES = [
   },
   {
     id: "siege", name: "SIEGE", tag: "Top-down arena shooter",
-    rom: "0x7e9a6ac972390d0b383da891e66f9be4fea40426",
+    rom: "0x16f5c165e7ab37712949e71502072439f0191b4a",
     note: "Hold out against the waves. Click the field to start; WASD to move, " +
-          "arrow keys to shoot in eight directions, hold the mouse to aim-fire.",
+          "click to shoot toward the cursor (hold for auto-fire). One life.",
   },
 ];
 
