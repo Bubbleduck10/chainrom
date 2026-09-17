@@ -44,6 +44,17 @@
   </div>
 </section>
 
+<!-- ─────────────────────────────── contract ──────────────────────────── -->
+
+<section class="ca-wrap" aria-label="Token contract address">
+  <div class="ca">
+    <span class="ca-tag">$DEPTH · Contract</span>
+    <code class="ca-addr" id="caAddr">0xc23317490b24d6e53c0137ed5d0d2ae565674bcb</code>
+    <button class="ca-copy" id="caCopy" type="button" data-addr="0xc23317490b24d6e53c0137ed5d0d2ae565674bcb" aria-label="Copy contract address">copy</button>
+    <a class="ca-link" href="https://robinhoodchain.blockscout.com/token/0xc23317490b24d6e53c0137ed5d0d2ae565674bcb" target="_blank" rel="noopener">explorer ↗</a>
+  </div>
+</section>
+
 <!-- ─────────────────────────────── boot ──────────────────────────────── -->
 
 <section class="band" id="boot">
@@ -210,6 +221,8 @@
   <span>chainrom</span>
   <span class="sep">·</span>
   <span>read from chain state, verified by the chain</span>
+  <span class="sep">·</span>
+  <button class="foot-ca" type="button" data-addr="0xc23317490b24d6e53c0137ed5d0d2ae565674bcb" aria-label="Copy $DEPTH contract address">$DEPTH&nbsp;0xc233…674bcb</button>
   <a class="x" href="https://x.com/ChainRom_" target="_blank" rel="noopener" aria-label="ChainRom on X">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
     <span>@ChainRom_</span>
@@ -217,5 +230,38 @@
 </footer>
 
 <script type="module" src="js/app.js"></script>
+<script>
+/* Click-to-copy for any [data-addr] control (the contract-address bar and the
+   footer chip). Uses the async clipboard API with a textarea fallback for
+   contexts where it is unavailable, and flashes "copied" on the button. */
+(function () {
+  function flash(btn) {
+    const orig = btn.textContent;
+    btn.textContent = "copied ✓";
+    btn.classList.add("ok");
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove("ok"); }, 1400);
+  }
+  function fallback(text, btn) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", "");
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta);
+      flash(btn);
+    } catch (e) { /* nothing safe to do; leave the address on screen to copy by hand */ }
+  }
+  document.querySelectorAll("[data-addr]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const text = btn.getAttribute("data-addr");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => flash(btn)).catch(() => fallback(text, btn));
+      } else {
+        fallback(text, btn);
+      }
+    });
+  });
+})();
+</script>
 </body>
 </html>
