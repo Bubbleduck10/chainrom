@@ -54,6 +54,13 @@ const GAMES = [
     note: "Hold out against the waves. Click the field to start; WASD to move, " +
           "click to shoot toward the cursor (hold for auto-fire). One life.",
   },
+  {
+    id: "stack", name: "STACK", tag: "1v1 duel · the chain referees",
+    rom: null,
+    note: "Connect four, but the chain is the referee: every move is a transaction " +
+          "it validates, so no server decides the winner. A head-to-head duel where " +
+          "you never touch a wallet and never pay gas. Coming soon.",
+  },
 ];
 
 /* `?game=<id>` picks a game; `?rom=0x…&rpc=…` override the target. The override
