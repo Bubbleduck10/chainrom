@@ -50,9 +50,9 @@ const GAMES = [
   },
   {
     id: "siege", name: "SIEGE", tag: "Top-down arena shooter",
-    rom: null,
-    note: "Hold out against the waves — WASD to move, arrow keys to shoot. " +
-          "Written and compiled to WebAssembly; waiting to be sealed on chain.",
+    rom: "0x7e9a6ac972390d0b383da891e66f9be4fea40426",
+    note: "Hold out against the waves. Click the field to start; WASD to move, " +
+          "arrow keys to shoot in eight directions, hold the mouse to aim-fire.",
   },
 ];
 
@@ -104,6 +104,15 @@ function renderPicker() {
    state never lingers under another's name. It does not auto-load — the whole
    point of the page is that reading a ROM off the chain is a deliberate act. */
 function selectGame(i) {
+  /* Once a game has booted, its emscripten engine owns the shared #screen canvas
+     and cannot be cleanly torn down — a second engine on the same canvas means
+     two main loops fighting over it, and DEPTH wants pointer lock while SIEGE
+     refuses it. So switching to a different game after one has loaded reloads the
+     page into that game with a clean canvas, rather than swapping in place. */
+  if (loaded && GAMES[i] && GAMES[i].id !== GAMES[selected].id) {
+    location.search = "?game=" + GAMES[i].id;
+    return;
+  }
   selected = i;
   const g = GAMES[i];
   CONFIG.rom = romOverride || g.rom;
