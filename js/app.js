@@ -56,10 +56,11 @@ const GAMES = [
   },
   {
     id: "battleship", name: "BATTLESHIP", tag: "1v1 naval duel · the chain referees",
-    rom: null,
+    rom: null, page: "battleship.html",
     note: "Hidden fleets, fire by coordinate, sink to win — and the chain is the " +
-          "referee: every shot is a transaction it validates, so no one can peek or " +
-          "cheat. A duel where you never touch a wallet and never pay gas. Coming soon.",
+          "referee: every shot is a transaction it validates, so no one can peek or cheat. " +
+          "The page makes you a throwaway key (your real wallet is never touched); fund it " +
+          "with a little Robinhood Chain gas and play. Click Play to start a duel.",
   },
 ];
 
@@ -99,10 +100,12 @@ const setBar = (frac) => { $("barFill").style.width = Math.max(0, Math.min(1, fr
 function renderPicker() {
   const el = $("picker");
   if (!el) return;
-  el.innerHTML = GAMES.map((g, i) =>
-    `<button class="pick${g.rom ? "" : " soon"}" data-i="${i}" role="tab" aria-selected="${i === selected}">
-       <b>${esc(g.name)}</b><span>${esc(g.tag)}</span>${g.rom ? "" : '<i class="badge">soon</i>'}
-     </button>`).join("");
+  el.innerHTML = GAMES.map((g, i) => {
+    const soon = !g.rom && !g.page;   // a `page` game is playable, not "coming soon"
+    return `<button class="pick${soon ? " soon" : ""}" data-i="${i}" role="tab" aria-selected="${i === selected}">
+       <b>${esc(g.name)}</b><span>${esc(g.tag)}</span>${soon ? '<i class="badge">soon</i>' : g.page ? '<i class="badge live">live</i>' : ""}
+     </button>`;
+  }).join("");
   el.querySelectorAll(".pick").forEach((b) =>
     b.addEventListener("click", () => selectGame(+b.dataset.i)));
 }
@@ -141,14 +144,23 @@ function selectGame(i) {
     b.setAttribute("aria-selected", (+b.dataset.i === i).toString()));
 
   const btn = $("btnLoad");
-  if (CONFIG.rom) {
+  if (g.page) {
+    /* A live multiplayer game on its own page rather than a ROM to boot. */
     btn.disabled = false;
-    btn.textContent = "Load from chain";
-    status("idle", "");
+    btn.textContent = "Play →";
+    btn.dataset.page = g.page;
+    status(g.name + " — live 1v1", "ok");
   } else {
-    btn.disabled = true;
-    btn.textContent = "Not on chain yet";
-    status(g.name + " — not on chain yet", "");
+    delete btn.dataset.page;
+    if (CONFIG.rom) {
+      btn.disabled = false;
+      btn.textContent = "Load from chain";
+      status("idle", "");
+    } else {
+      btn.disabled = true;
+      btn.textContent = "Not on chain yet";
+      status(g.name + " — not on chain yet", "");
+    }
   }
 }
 
@@ -459,7 +471,11 @@ async function spotCheck() {
 
 renderCosts();
 renderPicker();
-$("btnLoad").addEventListener("click", load);
+$("btnLoad").addEventListener("click", () => {
+  const page = $("btnLoad").dataset.page;   // a `page` game (e.g. BATTLESHIP) opens its own page
+  if (page) { location.href = page; return; }
+  load();
+});
 $("btnProof").addEventListener("click", spotCheck);
 
 /* Fullscreen the game stage, and focus the canvas on entering so the keyboard

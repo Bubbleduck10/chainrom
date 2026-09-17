@@ -201,6 +201,7 @@ code { color: var(--green); font-size: .93em; }
   font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
   color: var(--amber); border: 1px solid #f0b23c55; border-radius: 3px; padding: 1px 6px;
 }
+.pick .badge.live { color: var(--green); border-color: #43d67555; }
 
 /* ── console ──────────────────────────────────────────────────────────── */
 

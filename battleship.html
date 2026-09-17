@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BATTLESHIP — refereed by the chain</title>
+<style>
+  :root{--bg:#080b09;--panel:#0d120f;--panel2:#111815;--line:#1c2a22;--hot:#2b4a38;
+    --ink:#d6f0e0;--dim:#8fae9c;--mute:#5c7668;--green:#43d675;--amber:#f0b23c;--red:#ff5f56;--blue:#5aa9ff;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;color-scheme:dark;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--mono);
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:20px 14px 60px;gap:14px}
+  h1{margin:2px 0 0;font-size:26px;letter-spacing:-.01em}h1 b{color:var(--green)}
+  .sub{color:var(--dim);font-size:12.5px;text-align:center;max-width:64ch;margin:0}
+  .card{width:100%;max-width:760px;border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 15px;border-radius:4px;cursor:pointer;
+    border:1px solid var(--hot);background:var(--panel2);color:var(--ink);font:700 13px var(--mono);letter-spacing:.03em}
+  .btn:hover{border-color:var(--green);color:var(--green)}
+  .btn.go{background:var(--green);color:#06120b;border-color:var(--green)}.btn.go:hover{background:#5ae88a}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .btn.small{padding:7px 11px;font-size:12px}
+  input{background:#060907;border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:8px 10px;font:14px var(--mono);flex:1;min-width:80px}
+  .status{min-height:22px;font-size:14px}.status .g{color:var(--green)}.status .a{color:var(--amber)}.status .r{color:var(--red)}.status .d{color:var(--mute)}.status .b{color:var(--blue)}
+  .who{font-size:12px;color:var(--dim);word-break:break-all}.who b{color:var(--ink)}
+  .tag{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-bottom:6px}
+  .hidden{display:none}
+  .grids{display:flex;gap:20px;flex-wrap:wrap;justify-content:center}
+  .gwrap{display:flex;flex-direction:column;gap:6px;align-items:center}
+  .glabel{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .grid{position:relative;display:grid;grid-template-columns:repeat(10,1fr);gap:2px;
+    width:min(88vw,320px);aspect-ratio:1;background:#0a1712;padding:3px;border:1px solid var(--hot);border-radius:6px;touch-action:none}
+  .cell{background:#06201a;border-radius:2px;position:relative}
+  .grid.target .cell{cursor:crosshair}.grid.target .cell:hover{background:#0c3327}
+  .cell.miss::after{content:"";position:absolute;inset:34%;border-radius:50%;background:#7fa0c8;opacity:.8}
+  .cell.hit::after{content:"";position:absolute;inset:16%;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffd27a,var(--red));box-shadow:0 0 8px #ff5f5688}
+  .cell.ship{background:#455160}
+  .ship{position:absolute;background:linear-gradient(180deg,#7c8896,#4a535d);border:1px solid #2a3038;border-radius:6px;
+    cursor:grab;touch-action:none;display:flex;align-items:center;justify-content:center;gap:6%}
+  .ship.bad{background:linear-gradient(180deg,#8f4a4a,#5d2a2a);border-color:#7a2a2a}
+  .ship i{width:16%;aspect-ratio:1;border-radius:50%;background:#2c333b;box-shadow:inset 0 0 0 2px #8b97a2}
+  a{color:var(--green)}
+</style>
+</head>
+<body>
+  <div style="width:100%;max-width:760px"><a href="./" style="color:var(--mute);font-size:12px;text-decoration:none">← chainrom</a></div>
+  <h1><b>BATTLESHIP</b> — refereed by the chain</h1>
+  <p class="sub">Hidden fleets, fire by coordinate, sink to win. Your board is committed as a hash — the chain can't
+     see your ships, but it catches any lie. No wallet at risk: the page makes a throwaway key that plays for you.</p>
+
+  <!-- throwaway wallet / funding -->
+  <div class="card" id="fund">
+    <div class="row" style="justify-content:space-between">
+      <span class="who">throwaway key <b id="addr">…</b> &nbsp;·&nbsp; balance <b id="bal">—</b></span>
+      <button class="btn small" id="btnCopyAddr">copy address</button>
+    </div>
+    <div class="status d" id="fundMsg" style="margin-top:8px"></div>
+  </div>
+
+  <!-- placement -->
+  <div class="card" id="place">
+    <div class="tag">Place your fleet — drag to move, double-click a ship to rotate</div>
+    <div class="gwrap" style="margin:10px auto 0"><div class="grid" id="pgrid"></div></div>
+    <div class="row" style="margin-top:14px;justify-content:space-between">
+      <div class="row"><button class="btn" id="btnRandom">Randomize</button>
+        <button class="btn go" id="btnReady" disabled>Ready to battle</button></div>
+      <span class="status d" id="placeMsg"></span>
+    </div>
+  </div>
+
+  <!-- lobby -->
+  <div class="card" id="lobby">
+    <div class="tag">Or join an open table</div>
+    <div class="row"><input id="joinId" placeholder="game id, e.g. 0" inputmode="numeric"><button class="btn" id="btnJoinId">Go</button></div>
+  </div>
+
+  <!-- play -->
+  <div class="card hidden" id="game">
+    <div class="row" style="justify-content:space-between">
+      <span class="tag" style="margin:0">Table <b id="gid" style="color:var(--ink)">—</b></span>
+      <span class="status" id="msg"></span>
+    </div>
+    <div class="grids" style="margin-top:12px">
+      <div class="gwrap"><div class="glabel">Enemy waters — fire here</div><div class="grid target" id="tgrid"></div></div>
+      <div class="gwrap"><div class="glabel">Your fleet</div><div class="grid" id="fgrid"></div></div>
+    </div>
+    <div class="row hidden" id="share" style="margin-top:12px"><input id="shareUrl" readonly><button class="btn" id="btnCopy">copy</button></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-start"><button class="btn" id="btnNew">New game</button></div>
+  </div>
+
+<script type="module">
+import { secp256k1 } from "https://cdn.jsdelivr.net/npm/@noble/curves@1.9.7/secp256k1/+esm";
+import { keccak_256 } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/sha3/+esm";
+
+const q = new URLSearchParams(location.search);
+/* Robinhood Chain + the deployed BATTLESHIP referee. ?rpc/?chain/?addr override
+   for testing against a local node. */
+const CFG = {
+  rpc: q.get("rpc") || "https://rpc.mainnet.chain.robinhood.com",
+  chainId: Number(q.get("chain") || 4663),
+  addr: (q.get("addr") || "0x34a6548dd7cbab0df687e650c3559815704a6c79").toLowerCase(),
+};
+const $ = (id) => document.getElementById(id);
+
+/* ── hex/bytes/keccak ─────────────────────────────────────────────────────── */
+const te = new TextEncoder();
+const hexs = (b) => "0x" + [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+const tob = (h) => Uint8Array.from(((h || "").replace(/^0x/, "").match(/../g) || []).map((x) => parseInt(x, 16)));
+const keccak = (b) => keccak_256(b);
+const cat = (...a) => { const n = a.reduce((s, x) => s + x.length, 0), o = new Uint8Array(n); let i = 0; for (const x of a) { o.set(x, i); i += x.length; } return o; };
+const bytesN = (n, len) => { const b = new Uint8Array(len); let v = BigInt(n); for (let i = len - 1; i >= 0 && v > 0n; i--) { b[i] = Number(v & 255n); v >>= 8n; } return b; };
+
+/* ── raw EIP-1559 signing (ported from chainrom's src/sign.mjs) ───────────── */
+function toMin(v) { let n = BigInt(v ?? 0); if (n === 0n) return new Uint8Array(0); let s = n.toString(16); if (s.length % 2) s = "0" + s; return tob(s); }
+const lenPrefix = (len, off) => { if (len < 56) return Uint8Array.from([off + len]); const lb = toMin(len); return cat(Uint8Array.from([off + 55 + lb.length]), lb); };
+function rlp(item) {
+  if (Array.isArray(item)) { const body = cat(...item.map(rlp)); return cat(lenPrefix(body.length, 0xc0), body); }
+  const b = item instanceof Uint8Array ? item : tob(item);
+  if (b.length === 1 && b[0] < 0x80) return b;
+  return cat(lenPrefix(b.length, 0x80), b);
+}
+function signTx(tx, priv) {
+  const fields = [toMin(tx.chainId), toMin(tx.nonce), toMin(tx.maxPriorityFeePerGas), toMin(tx.maxFeePerGas), toMin(tx.gas),
+    tx.to ? tob(tx.to) : new Uint8Array(0), toMin(tx.value || 0), tob(tx.data || "0x"), []];
+  const TYPE = Uint8Array.from([0x02]);
+  const sighash = keccak(cat(TYPE, rlp(fields)));
+  const sig = secp256k1.sign(sighash, priv);
+  const r = toMin("0x" + sig.r.toString(16)), s = toMin("0x" + sig.s.toString(16)), yP = toMin(sig.recovery);
+  return hexs(cat(TYPE, rlp([...fields, yP, r, s])));
+}
+
+/* ── throwaway key ────────────────────────────────────────────────────────── */
+const KEYSLOT = "bs.key" + (q.get("slot") ? "." + q.get("slot") : "");
+let PRIV; try { const s = localStorage.getItem(KEYSLOT); PRIV = s ? tob(s) : null; } catch {}
+if (!PRIV || PRIV.length !== 32) { PRIV = secp256k1.utils.randomPrivateKey(); try { localStorage.setItem(KEYSLOT, hexs(PRIV)); } catch {} }
+const ME = hexs(keccak(secp256k1.getPublicKey(PRIV, false).slice(1)).slice(12));
+$("addr").textContent = ME.slice(0, 8) + "…" + ME.slice(-6);
+
+/* ── rpc + tx sending ─────────────────────────────────────────────────────── */
+let rid = 1;
+async function rpc(method, params) {
+  const res = await fetch(CFG.rpc, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: rid++, method, params }) });
+  const j = await res.json(); if (j.error) throw new Error(j.error.message); return j.result;
+}
+const sel = (s) => hexs(keccak(te.encode(s)).slice(0, 4));
+const u = (n) => BigInt(n).toString(16).padStart(64, "0");
+const b32 = (h) => h.replace(/^0x/, "").toLowerCase().padStart(64, "0");
+const call = (data) => rpc("eth_call", [{ to: CFG.addr, data }, "latest"]);
+
+let NONCE = null;
+async function sendTx(data, fallbackGas) {
+  if (NONCE == null) NONCE = Number(BigInt(await rpc("eth_getTransactionCount", [ME, "pending"])));
+  let gas = fallbackGas;
+  try { gas = Math.ceil(Number(BigInt(await rpc("eth_estimateGas", [{ from: ME, to: CFG.addr, data }]))) * 1.3); }
+  catch (e) { if (String(e.message).includes("insufficient")) throw new Error("Your throwaway key is out of gas — send a little more to " + ME); }
+  const base = BigInt(await rpc("eth_gasPrice", []));
+  const raw = signTx({ chainId: CFG.chainId, nonce: NONCE, maxPriorityFeePerGas: base, maxFeePerGas: base * 2n, gas, to: CFG.addr, value: 0, data }, PRIV);
+  let hash;
+  try { hash = await rpc("eth_sendRawTransaction", [raw]); }
+  catch (e) { NONCE = null; if (/insufficient|funds/i.test(e.message)) throw new Error("Your throwaway key is out of gas — send more to " + ME); throw e; }
+  NONCE++;
+  return hash;
+}
+async function waitReceipt(hash, tries = 40) {
+  for (let i = 0; i < tries; i++) { const r = await rpc("eth_getTransactionReceipt", [hash]); if (r) return r; await new Promise((res) => setTimeout(res, 500)); }
+  throw new Error("receipt timed out");
+}
+
+/* ── contract calldata (direct entrypoints — the key signs & sends) ───────── */
+const CD = {
+  create: (commit) => sel("create(bytes32)") + b32(commit),
+  join: (id, commit) => sel("join(uint256,bytes32)") + u(id) + b32(commit),
+  fire: (id, cell) => sel("fire(uint256,uint8)") + u(id) + u(cell),
+  report: (id, hit) => sel("report(uint256,bool)") + u(id) + u(hit ? 1 : 0),
+  reveal: (id, board, salt) => sel("reveal(uint256,uint128,bytes32)") + u(id) + u(board) + b32(salt),
+};
+const CREATED_TOPIC = hexs(keccak(te.encode("Created(uint256,address)")));
+
+/* ── reads ────────────────────────────────────────────────────────────────── */
+async function readGame(id) {
+  const r = (await call(sel("game(uint256)") + u(id))).replace(/^0x/, ""); const w = (i) => r.slice(i * 64, i * 64 + 64);
+  return { p1: "0x" + w(0).slice(24), p2: "0x" + w(1).slice(24), status: parseInt(w(2), 16), turn: parseInt(w(3), 16),
+    awaiting: parseInt(w(4), 16) === 1, pending: parseInt(w(5), 16), actionIndex: parseInt(w(6), 16),
+    hc1: parseInt(w(7), 16), hc2: parseInt(w(8), 16), prov: parseInt(w(9), 16) };
+}
+async function readShots(id) {
+  const r = (await call(sel("shots(uint256)") + u(id))).replace(/^0x/, ""); const w = (i) => BigInt("0x" + r.slice(i * 64, i * 64 + 64));
+  return { shots1: w(0), hits1: w(1), shots2: w(2), hits2: w(3) };
+}
+const getBalance = () => rpc("eth_getBalance", [ME, "latest"]).then((x) => BigInt(x));
+
+/* ── fleet placement ──────────────────────────────────────────────────────── */
+const SHIPS = [5, 4, 3, 3, 2];
+let fleet = [];
+function cellsOf(s) { const o = []; for (let i = 0; i < s.len; i++) o.push([s.r + (s.horiz ? 0 : i), s.c + (s.horiz ? i : 0)]); return o; }
+function inB(s) { return cellsOf(s).every(([r, c]) => r >= 0 && r < 10 && c >= 0 && c < 10); }
+function ov(list) { const seen = new Set(); for (const s of list) for (const [r, c] of cellsOf(s)) { const k = r * 10 + c; if (seen.has(k)) return true; seen.add(k); } return false; }
+const fleetValid = () => fleet.every(inB) && !ov(fleet);
+function randomize() {
+  fleet = [];
+  for (const len of SHIPS) for (let t = 0; t < 500; t++) {
+    const horiz = Math.random() < .5, r = Math.floor(Math.random() * (horiz ? 10 : 11 - len)), c = Math.floor(Math.random() * (horiz ? 11 - len : 10)), s = { len, r, c, horiz };
+    if (inB(s) && !ov([...fleet, s])) { fleet.push(s); break; }
+  }
+  renderPlace();
+}
+function boardBits() { let b = 0n; for (const s of fleet) for (const [r, c] of cellsOf(s)) b |= 1n << BigInt(r * 10 + c); return b; }
+function renderPlace() {
+  const g = $("pgrid"); g.querySelectorAll(".cell,.ship").forEach((e) => e.remove());
+  for (let i = 0; i < 100; i++) { const d = document.createElement("div"); d.className = "cell"; g.appendChild(d); }
+  const rect = g.getBoundingClientRect(), cs = rect.width / 10;
+  fleet.forEach((s, idx) => {
+    const bad = !(inB(s) && !ov(fleet.filter((_, j) => j !== idx).concat(s)));
+    const el = document.createElement("div"); el.className = "ship" + (bad ? " bad" : "");
+    el.style.left = (3 + s.c * cs) + "px"; el.style.top = (3 + s.r * cs) + "px";
+    el.style.width = (s.horiz ? s.len * cs : cs) - 4 + "px"; el.style.height = (s.horiz ? cs : s.len * cs) - 4 + "px";
+    el.style.flexDirection = s.horiz ? "row" : "column";
+    for (let i = 0; i < s.len; i++) el.appendChild(document.createElement("i"));
+    el.addEventListener("pointerdown", (e) => startDrag(e, idx));
+    el.addEventListener("dblclick", () => { const o = { ...s }; s.horiz = !s.horiz; if (!inB(s) || ov(fleet)) Object.assign(s, o); renderPlace(); });
+    g.appendChild(el);
+  });
+  updateReady();
+}
+function startDrag(e, idx) {
+  e.preventDefault(); const g = $("pgrid"), rect = g.getBoundingClientRect(), cs = rect.width / 10, s = fleet[idx], orig = { ...s };
+  const move = (ev) => { const c = Math.floor((ev.clientX - rect.left - cs / 2) / cs), r = Math.floor((ev.clientY - rect.top - cs / 2) / cs);
+    s.r = Math.max(0, Math.min(s.horiz ? 9 : 10 - s.len, r)); s.c = Math.max(0, Math.min(s.horiz ? 10 - s.len : 9, c)); renderPlace(); };
+  const up = () => { if (ov(fleet) || !inB(s)) Object.assign(s, orig); renderPlace(); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+}
+
+/* ── funding gate ─────────────────────────────────────────────────────────── */
+let BAL = 0n;
+const eth = (w) => (Number(w) / 1e18).toFixed(6);
+async function refreshBalance() {
+  try { BAL = await getBalance(); } catch { return; }
+  $("bal").textContent = eth(BAL);
+  const ok = BAL > 0n;
+  $("fundMsg").innerHTML = ok
+    ? '<span class="g">Funded — your key can play.</span>'
+    : '<span class="a">Send a little Robinhood Chain gas to the address above to play — a whole match is a few cents, and it never touches your real wallet.</span>';
+  updateReady();
+}
+function updateReady() { const b = $("btnReady"); if (b) b.disabled = !(fleet.length === 5 && fleetValid() && BAL > 0n); }
+
+/* ── game state ───────────────────────────────────────────────────────────── */
+let ID = null, poll = null, MY = { board: 0n, salt: null }, busy = false, revealing = false, pendingJoin = null;
+function msg(t, cls = "") { $("msg").innerHTML = cls ? `<span class="${cls}">${t}</span>` : t; }
+const myNum = (g) => g.p1.toLowerCase() === ME.toLowerCase() ? 1 : g.p2.toLowerCase() === ME.toLowerCase() ? 2 : 0;
+const bit = (m, i) => (m >> BigInt(i)) & 1n;
+function saveMine(id, board, salt) { MY = { board, salt }; try { localStorage.setItem(`bs.g.${id}.${KEYSLOT}`, JSON.stringify({ board: board.toString(), salt })); } catch {} }
+function loadMine(id) { try { const j = JSON.parse(localStorage.getItem(`bs.g.${id}.${KEYSLOT}`) || "null"); if (j) MY = { board: BigInt(j.board), salt: j.salt }; } catch {} }
+
+async function commitAndStart(join) {
+  $("btnReady").disabled = true; $("placeMsg").textContent = "committing your fleet…";
+  try {
+    const board = boardBits(), salt = hexs(crypto.getRandomValues(new Uint8Array(32)));
+    const commit = hexs(keccak(cat(bytesN(board, 16), tob(salt))));
+    if (join != null) {
+      const h = await sendTx(CD.join(join, commit), 160000); await waitReceipt(h);
+      saveMine(join, board, salt); openGame(join);
+    } else {
+      const h = await sendTx(CD.create(commit), 200000); const rc = await waitReceipt(h);
+      const log = (rc.logs || []).find((l) => (l.topics || [])[0] === CREATED_TOPIC);
+      const id = BigInt(log.topics[1]).toString();
+      saveMine(id, board, salt); openGame(id);
+    }
+  } catch (e) { $("placeMsg").innerHTML = '<span class="r">' + e.message + "</span>"; $("btnReady").disabled = false; }
+}
+
+/* ── render play ──────────────────────────────────────────────────────────── */
+function buildGrid(el, target) { el.innerHTML = ""; for (let i = 0; i < 100; i++) { const d = document.createElement("div"); d.className = "cell"; d.dataset.i = i; if (target) d.addEventListener("click", () => fire(i)); el.appendChild(d); } }
+function renderPlay(g, m) {
+  const me = myNum(g);
+  const mine = me === 1 ? { shots: m.shots2, hits: m.hits2 } : { shots: m.shots1, hits: m.hits1 };
+  const foe = me === 1 ? { shots: m.shots1, hits: m.hits1 } : { shots: m.shots2, hits: m.hits2 };
+  [...$("tgrid").children].forEach((c, i) => c.className = "cell" + (bit(mine.hits, i) ? " hit" : bit(mine.shots, i) ? " miss" : ""));
+  [...$("fgrid").children].forEach((c, i) => { let cl = "cell"; if (bit(MY.board, i)) cl += " ship"; if (bit(foe.hits, i)) cl += " hit"; else if (bit(foe.shots, i)) cl += " miss"; c.className = cl; });
+  const yourTurn = g.status === 1 && me === g.turn && !g.awaiting;
+  $("tgrid").classList.toggle("target", yourTurn);
+  const myHits = me === 1 ? g.hc2 : g.hc1, foeHits = me === 1 ? g.hc1 : g.hc2;
+  if (g.status === 0) { msg(me === 1 ? '<span class="a">Waiting for an opponent — share the link.</span>' : '<span class="a">Placing…</span>'); $("share").classList.toggle("hidden", me !== 1); }
+  else if (g.status === 1) { $("share").classList.add("hidden");
+    if (g.awaiting) msg(g.turn === me ? '<span class="d">Awaiting the report…</span>' : '<span class="b">Incoming — checking your fleet…</span>');
+    else msg(yourTurn ? `<span class="g">Your shot. (${myHits}/17 hits — you take ${foeHits}/17)</span>` : '<span class="d">Opponent is aiming…</span>'); }
+  else if (g.status === 2) { $("share").classList.add("hidden"); msg('<span class="a">Revealing boards to the chain…</span>'); }
+  else { $("share").classList.add("hidden"); $("tgrid").classList.remove("target");
+    const iWon = (g.status === 3 && me === 1) || (g.status === 4 && me === 2);
+    msg(g.status === 5 ? '<span class="a">Draw.</span>' : iWon ? '<span class="g">Fleet sunk — you win. The chain verified it.</span>' : '<span class="r">Your fleet is down. You lose.</span>');
+    if (poll) { clearInterval(poll); poll = null; } }
+}
+
+/* ── actions (self-funded: the key signs AND sends) ───────────────────────── */
+async function fire(cell) {
+  if (busy) return; const g = await readGame(ID), me = myNum(g);
+  if (g.status !== 1 || g.turn !== me || g.awaiting) return;
+  const m = await readShots(ID); if (bit(me === 1 ? m.shots2 : m.shots1, cell)) return;
+  busy = true;
+  try { msg('<span class="d">firing…</span>'); await sendTx(CD.fire(ID, cell), 70000); await refresh(); }
+  catch (e) { msg('<span class="r">' + e.message + "</span>"); }
+  busy = false;
+}
+async function maybeAutoRespond(g) {
+  const me = myNum(g);
+  if (g.status === 1 && g.awaiting && g.turn !== me && !busy) {   // we are the defender → report automatically
+    busy = true;
+    try { const hit = bit(MY.board, g.pending) === 1n; await sendTx(CD.report(ID, hit), 100000); }
+    catch (e) { busy = false; msg('<span class="r">' + e.message + "</span>"); return true; }
+    busy = false; await refresh(); return true;
+  }
+  if (g.status === 2 && !revealing && me) {                        // reveal phase → open our board automatically
+    revealing = true;
+    try { await sendTx(CD.reveal(ID, "0x" + MY.board.toString(16), MY.salt), 110000); }
+    catch (e) { revealing = false; }
+    return true;
+  }
+  return false;
+}
+async function refresh() {
+  if (ID == null) return;
+  try { const g = await readGame(ID); if (await maybeAutoRespond(g)) { renderPlay(await readGame(ID), await readShots(ID)); return; } renderPlay(g, await readShots(ID)); }
+  catch (e) { msg('<span class="r">' + e.message + "</span>"); }
+}
+function openGame(id) {
+  ID = String(id); loadMine(ID);
+  history.replaceState(null, "", "?" + new URLSearchParams({ ...Object.fromEntries(q), g: ID }));
+  $("place").classList.add("hidden"); $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
+  $("gid").textContent = ID; $("shareUrl").value = location.href;
+  buildGrid($("tgrid"), true); buildGrid($("fgrid"), false);
+  refresh(); if (poll) clearInterval(poll); poll = setInterval(refresh, 1500);
+}
+
+/* ── boot ─────────────────────────────────────────────────────────────────── */
+$("btnRandom").addEventListener("click", randomize);
+$("btnReady").addEventListener("click", () => commitAndStart(pendingJoin));
+$("btnJoinId").addEventListener("click", () => { const v = $("joinId").value.trim(); if (v !== "") { pendingJoin = v; $("place").scrollIntoView(); $("placeMsg").textContent = "place your fleet, then Ready to join #" + v; } });
+$("btnNew").addEventListener("click", () => { if (poll) clearInterval(poll); location.search = new URLSearchParams({ rpc: CFG.rpc, chain: CFG.chainId, addr: CFG.addr }).toString(); });
+$("btnCopy").addEventListener("click", () => { navigator.clipboard?.writeText($("shareUrl").value); $("btnCopy").textContent = "copied ✓"; setTimeout(() => ($("btnCopy").textContent = "copy"), 1200); });
+$("btnCopyAddr").addEventListener("click", () => { navigator.clipboard?.writeText(ME); $("btnCopyAddr").textContent = "copied ✓"; setTimeout(() => ($("btnCopyAddr").textContent = "copy address"), 1200); });
+window.addEventListener("resize", () => { if (!$("place").classList.contains("hidden")) renderPlace(); });
+
+(async () => {
+  if (!CFG.addr) { $("placeMsg").textContent = "no contract — add ?addr=0x…"; return; }
+  randomize(); refreshBalance(); setInterval(refreshBalance, 4000);
+  const g = q.get("g");
+  if (g != null && g !== "") {
+    loadMine(g);
+    try { const gm = await readGame(g);
+      if (myNum(gm) && MY.salt) openGame(g);
+      else if (gm.status === 0) { pendingJoin = g; $("placeMsg").textContent = "place your fleet, then Ready to join #" + g; }
+      else $("placeMsg").textContent = "game #" + g + " is not open to join.";
+    } catch (e) { $("placeMsg").textContent = "cannot reach chain: " + e.message; }
+  }
+})();
+</script>
+</body>
+</html>
