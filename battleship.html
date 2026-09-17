@@ -49,13 +49,28 @@
   <p class="sub">Hidden fleets, fire by coordinate, sink to win. Your board is committed as a hash — the chain can't
      see your ships, but it catches any lie. No wallet at risk: the page makes a throwaway key that plays for you.</p>
 
-  <!-- throwaway wallet / funding -->
+  <!-- in-app play wallet -->
   <div class="card" id="fund">
-    <div class="row" style="justify-content:space-between">
-      <span class="who">throwaway key <b id="addr">…</b> &nbsp;·&nbsp; balance <b id="bal">—</b></span>
+    <div class="tag">Your play wallet &nbsp;·&nbsp; made for you in this browser — no extension, no connecting</div>
+    <div class="row" style="justify-content:space-between;margin-top:8px">
+      <span class="who">address <b id="addr">…</b> &nbsp;·&nbsp; balance <b id="bal">—</b></span>
       <button class="btn small" id="btnCopyAddr">copy address</button>
     </div>
-    <div class="status d" id="fundMsg" style="margin-top:8px"></div>
+    <div class="status d" id="fundMsg" style="margin:10px 0"></div>
+    <div class="row">
+      <button class="btn small" id="btnBackup">Back up key</button>
+      <button class="btn small" id="btnImport">Import a key</button>
+      <button class="btn small" id="btnNewWallet">New wallet</button>
+    </div>
+    <div id="keyBox" class="hidden" style="margin-top:12px">
+      <div class="status a">Save this somewhere safe. Anyone who has it controls this play wallet — treat it like cash, and never paste your <em>main</em> wallet's key here.</div>
+      <input id="keyOut" readonly style="margin-top:8px;width:100%">
+      <div class="row" style="margin-top:8px"><button class="btn small" id="btnCopyKey">copy key</button><button class="btn small" id="btnDownloadKey">download</button><button class="btn small" id="btnHideKey">done</button></div>
+    </div>
+    <div id="importBox" class="hidden" style="margin-top:12px">
+      <input id="keyIn" placeholder="paste a 0x… private key to restore a funded play wallet">
+      <div class="row" style="margin-top:8px"><button class="btn small go" id="btnDoImport">Import</button><button class="btn small" id="btnCancelImport">cancel</button></div>
+    </div>
   </div>
 
   <!-- placement -->
@@ -339,6 +354,29 @@ $("btnJoinId").addEventListener("click", () => { const v = $("joinId").value.tri
 $("btnNew").addEventListener("click", () => { if (poll) clearInterval(poll); location.search = new URLSearchParams({ rpc: CFG.rpc, chain: CFG.chainId, addr: CFG.addr }).toString(); });
 $("btnCopy").addEventListener("click", () => { navigator.clipboard?.writeText($("shareUrl").value); $("btnCopy").textContent = "copied ✓"; setTimeout(() => ($("btnCopy").textContent = "copy"), 1200); });
 $("btnCopyAddr").addEventListener("click", () => { navigator.clipboard?.writeText(ME); $("btnCopyAddr").textContent = "copied ✓"; setTimeout(() => ($("btnCopyAddr").textContent = "copy address"), 1200); });
+
+/* Play-wallet: back up (so a funded key survives a browser clear), import to
+   restore/reuse, or make a fresh one. */
+$("btnBackup").addEventListener("click", () => { $("keyOut").value = hexs(PRIV); $("keyBox").classList.toggle("hidden"); $("importBox").classList.add("hidden"); });
+$("btnHideKey").addEventListener("click", () => { $("keyBox").classList.add("hidden"); $("keyOut").value = ""; });
+$("btnCopyKey").addEventListener("click", () => { navigator.clipboard?.writeText(hexs(PRIV)); $("btnCopyKey").textContent = "copied ✓"; setTimeout(() => ($("btnCopyKey").textContent = "copy key"), 1200); });
+$("btnDownloadKey").addEventListener("click", () => {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([hexs(PRIV) + "\n"], { type: "text/plain" }));
+  a.download = "chainrom-play-wallet-" + ME.slice(2, 10) + ".txt"; a.click(); URL.revokeObjectURL(a.href);
+});
+$("btnImport").addEventListener("click", () => { $("importBox").classList.toggle("hidden"); $("keyBox").classList.add("hidden"); $("keyIn").value = ""; try { $("keyIn").focus(); } catch {} });
+$("btnCancelImport").addEventListener("click", () => { $("importBox").classList.add("hidden"); });
+$("btnDoImport").addEventListener("click", () => {
+  const v = $("keyIn").value.trim().toLowerCase();
+  if (!/^0x[0-9a-f]{64}$/.test(v)) { $("fundMsg").innerHTML = '<span class="r">That is not a 32-byte private key (need 0x + 64 hex).</span>'; return; }
+  try { localStorage.setItem(KEYSLOT, v); } catch {}
+  location.reload();   // reinitialise with the imported key
+});
+$("btnNewWallet").addEventListener("click", () => {
+  if (!confirm("Make a fresh play wallet? Back up the current one first if it holds gas — you need its key to recover that balance.")) return;
+  try { localStorage.removeItem(KEYSLOT); } catch {}
+  location.reload();
+});
 window.addEventListener("resize", () => { if (!$("place").classList.contains("hidden")) renderPlace(); });
 
 (async () => {
