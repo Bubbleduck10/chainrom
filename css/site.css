@@ -177,6 +177,31 @@ h3 { margin: 34px 0 12px; font-size: 15px; font-weight: 700; color: var(--green)
 .sub { margin-top: -6px; font-size: 14px; }
 code { color: var(--green); font-size: .93em; }
 
+/* ── game picker ──────────────────────────────────────────────────────── */
+
+.picker { display: flex; gap: 10px; flex-wrap: wrap; margin: 22px 0 2px; }
+.pick {
+  flex: 1 1 200px; text-align: left; cursor: pointer; position: relative;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 12px 14px; border-radius: var(--radius);
+  border: 1px solid var(--line-hot); background: var(--panel);
+  color: var(--ink); font: inherit;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.pick:hover { border-color: var(--green); }
+.pick[aria-selected="true"] {
+  border-color: var(--green); background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+.pick b { font-size: 15px; letter-spacing: .02em; }
+.pick span { font-size: 12px; color: var(--ink-mute); }
+.pick.soon { opacity: .82; }
+.pick .badge {
+  position: absolute; top: 10px; right: 12px; font-style: normal;
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--amber); border: 1px solid #f0b23c55; border-radius: 3px; padding: 1px 6px;
+}
+
 /* ── console ──────────────────────────────────────────────────────────── */
 
 .console {

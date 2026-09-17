@@ -22,31 +22,52 @@ import { quote, CHAINS, PAYLOADS } from "./cost.mjs";
 /**
  * Where to read from.
  *
- * DEPTH, published to Robinhood Chain (id 4663) on 2026-09-15.
- * Earlier ROMs remain where they were — 0xaaa063de… (XOR field) and
- * 0x358e1302… (DEPTH before mouse look). Sealing is one-way, so every
- * revision is a new ROM rather than a replacement, and the old ones stay
- * readable forever. The empty-state branch
- * below is kept rather than deleted: if this is ever pointed at an unpublished
- * chain, "nothing has been published yet" and "the chain is unreachable" are
- * different problems and should not look alike.
+ * The chain and node are fixed; the ROM is chosen from the library below.
+ * DEPTH was published to Robinhood Chain (id 4663) on 2026-09-15. Earlier ROMs
+ * remain where they were — 0xaaa063de… (XOR field) and 0x358e1302… (DEPTH
+ * before mouse look). Sealing is one-way, so every revision is a new ROM rather
+ * than a replacement, and the old ones stay readable forever.
  */
 const CONFIG = {
   rpc: "https://rpc.mainnet.chain.robinhood.com",
   chainName: "Robinhood Chain",
-  rom: "0x5b2ed277a723c71b4e1c041e1ce0035c313ae931",
+  rom: null,          // set by selectGame() from the chosen entry below
 };
 
-/* `?rom=0x…&rpc=…` overrides the defaults. This is how the page is tested
-   against a local node before anything is published, and it is also the honest
-   shape for a reader of public data: nothing here is privileged, so anyone can
-   point it at another ROM or another node and get the same guarantees — the
-   verification does not depend on which endpoint answered. */
-{
+/**
+ * The library. Each game is an independent ROM — a permanent address, not a
+ * mutable slot — and a second one is here to make the point the loader is
+ * general: it boots whatever it verifies, not the one game it was built for.
+ * A `rom` of null means "written and compiled, not yet sealed on chain"; the
+ * empty state names that rather than failing like a bug in the loader.
+ */
+const GAMES = [
+  {
+    id: "depth", name: "DEPTH", tag: "First-person maze",
+    rom: "0x5b2ed277a723c71b4e1c041e1ce0035c313ae931",
+    note: "Collect the lamps, then find the exit. Click the view to capture the " +
+          "mouse; WASD to move, A/D or arrows to turn, Q/E to strafe.",
+  },
+  {
+    id: "siege", name: "SIEGE", tag: "Top-down arena shooter",
+    rom: null,
+    note: "Hold out against the waves — WASD to move, arrow keys to shoot. " +
+          "Written and compiled to WebAssembly; waiting to be sealed on chain.",
+  },
+];
+
+/* `?game=<id>` picks a game; `?rom=0x…&rpc=…` override the target. The override
+   is how the page is tested against a local node before anything is published:
+   it points the selected game at another ROM or node and gets the same
+   guarantees, because nothing here is privileged. */
+let selected = 0;
+const romOverride = (() => {
   const q = new URLSearchParams(location.search);
   if (q.get("rpc")) CONFIG.rpc = q.get("rpc");
-  if (/^0x[0-9a-fA-F]{40}$/.test(q.get("rom") || "")) CONFIG.rom = q.get("rom");
-}
+  const g = GAMES.findIndex((x) => x.id === q.get("game"));
+  if (g >= 0) selected = g;
+  return /^0x[0-9a-fA-F]{40}$/.test(q.get("rom") || "") ? q.get("rom") : null;
+})();
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
@@ -65,6 +86,55 @@ function status(text, state) {
   $("statusDot").className = "dot" + (state ? " " + state : "");
 }
 const setBar = (frac) => { $("barFill").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%"; };
+
+/* ── game picker ─────────────────────────────────────────────────────── */
+
+function renderPicker() {
+  const el = $("picker");
+  if (!el) return;
+  el.innerHTML = GAMES.map((g, i) =>
+    `<button class="pick${g.rom ? "" : " soon"}" data-i="${i}" role="tab" aria-selected="${i === selected}">
+       <b>${esc(g.name)}</b><span>${esc(g.tag)}</span>${g.rom ? "" : '<i class="badge">soon</i>'}
+     </button>`).join("");
+  el.querySelectorAll(".pick").forEach((b) =>
+    b.addEventListener("click", () => selectGame(+b.dataset.i)));
+}
+
+/* Switching games stops the running engine and clears the panel, so one game's
+   state never lingers under another's name. It does not auto-load — the whole
+   point of the page is that reading a ROM off the chain is a deliberate act. */
+function selectGame(i) {
+  selected = i;
+  const g = GAMES[i];
+  CONFIG.rom = romOverride || g.rom;
+
+  if (running) { running(); running = null; }
+  loaded = null;
+  lines = [];
+  $("log").textContent = "waiting.";
+  setBar(0);
+  for (const id of ["mChunks", "mBytes", "mReads", "mRoot"]) $(id).textContent = "—";
+  $("stageNote").hidden = false;
+  $("stageNote").textContent = g.note;
+  $("proofLog").textContent = "verify(index, proof) — evaluated on chain.";
+  $("proofDot").className = "dot";
+  $("proofText").textContent = "not run";
+
+  const picker = $("picker");
+  if (picker) picker.querySelectorAll(".pick").forEach((b) =>
+    b.setAttribute("aria-selected", (+b.dataset.i === i).toString()));
+
+  const btn = $("btnLoad");
+  if (CONFIG.rom) {
+    btn.disabled = false;
+    btn.textContent = "Load from chain";
+    status("idle", "");
+  } else {
+    btn.disabled = true;
+    btn.textContent = "Not on chain yet";
+    status(g.name + " — not on chain yet", "");
+  }
+}
 
 const fmtBytes = (n) =>
   n >= 1048576 ? (n / 1048576).toFixed(2) + " MB"
@@ -369,11 +439,7 @@ async function spotCheck() {
 /* ── wiring ──────────────────────────────────────────────────────────── */
 
 renderCosts();
+renderPicker();
 $("btnLoad").addEventListener("click", load);
 $("btnProof").addEventListener("click", spotCheck);
-
-if (!CONFIG.rom) {
-  status("no ROM published", "");
-  $("log").textContent =
-    "Nothing has been published yet. Press Load to see what the page would do.";
-}
+selectGame(selected);   // sets CONFIG.rom, the stage note and the Load button
