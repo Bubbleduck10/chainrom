@@ -55,11 +55,11 @@ const GAMES = [
           "click to shoot toward the cursor (hold for auto-fire). One life.",
   },
   {
-    id: "stack", name: "STACK", tag: "1v1 duel · the chain referees",
+    id: "battleship", name: "BATTLESHIP", tag: "1v1 naval duel · the chain referees",
     rom: null,
-    note: "Connect four, but the chain is the referee: every move is a transaction " +
-          "it validates, so no server decides the winner. A head-to-head duel where " +
-          "you never touch a wallet and never pay gas. Coming soon.",
+    note: "Hidden fleets, fire by coordinate, sink to win — and the chain is the " +
+          "referee: every shot is a transaction it validates, so no one can peek or " +
+          "cheat. A duel where you never touch a wallet and never pay gas. Coming soon.",
   },
 ];
 
