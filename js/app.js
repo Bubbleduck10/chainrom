@@ -378,6 +378,9 @@ async function bootNative(files) {
     $("stageNote").hidden = true;
     say("starting the engine…", "g");
     status("running", "ok");
+    /* Focus the canvas so the keyboard reaches the engine without a click
+       first — the arrow keys drive shooting in SIEGE. */
+    try { $("screen").focus(); } catch (e) {}
     /* callMain does not return for a game — asyncify keeps the browser
        responsive, but control stays inside the engine from here. */
     start(booted.instance);
@@ -451,4 +454,25 @@ renderCosts();
 renderPicker();
 $("btnLoad").addEventListener("click", load);
 $("btnProof").addEventListener("click", spotCheck);
+
+/* Fullscreen the game stage, and focus the canvas on entering so the keyboard
+   reaches the engine at once. Works for either game — it acts on the stage. */
+$("btnFull").addEventListener("click", () => {
+  const stage = document.querySelector(".stage");
+  if (document.fullscreenElement) { if (document.exitFullscreen) document.exitFullscreen(); return; }
+  const p = stage.requestFullscreen ? stage.requestFullscreen() : null;
+  Promise.resolve(p).then(() => { try { $("screen").focus(); } catch (e) {} }).catch(() => {});
+});
+
+/* Arrow keys and Space scroll the page by default, which steals them from the
+   game and slides the canvas out of view — that is why shooting (on the arrows)
+   felt dead. While a ROM is loaded, cancel that default: the engine's own key
+   handler still fires, so the keys reach it and the page stays put. */
+window.addEventListener("keydown", (e) => {
+  if (!loaded) return;
+  const k = e.key;
+  if (k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight" ||
+      k === " " || k === "Spacebar") e.preventDefault();
+}, { passive: false });
+
 selectGame(selected);   // sets CONFIG.rom, the stage note and the Load button
