@@ -56,6 +56,14 @@ const GAMES = [
           "click to shoot toward the cursor (hold for auto-fire). One life.",
   },
   {
+    id: "drift", name: "DRIFT", tag: "Vector asteroid shooter",
+    rom: "0xd1054ceaebc7b73a76ce259aa56656311ddb31fc",
+    note: "Fly through an asteroid field with real momentum. Click to start; arrows " +
+          "or A/D turn, up/W thrusts, space fires (hold to auto-fire), shift jumps to " +
+          "hyperspace. Big rocks split into faster ones — clear the field to advance a " +
+          "wave. A third kind of engine: nothing but glowing vector lines, read off the chain.",
+  },
+  {
     id: "battleship", name: "BATTLESHIP", tag: "1v1 naval duel · the chain referees",
     rom: null, page: "battleship.html",
     note: "Hidden fleets, fire by coordinate, sink to win — and the chain is the " +
